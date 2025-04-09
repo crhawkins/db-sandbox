@@ -3,10 +3,9 @@ package dbhelper
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 )
 
-func NewPostgreSQL(host string, port int, user string, password string) (DB, error) {
+func ConnectPostgreSQL(host string, port int, dbName string, user string, password string) (DB, error) {
 	if port == 0 {
 		port = 5432
 	}
@@ -14,31 +13,11 @@ func NewPostgreSQL(host string, port int, user string, password string) (DB, err
 	const driver = "postgres"
 
 	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=postgres sslmode=disable",
-		host, port, user, password,
+		"host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
+		host, port, dbName, user, password,
 	)
 
 	db, err := sql.Open(driver, dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dbWrapper{
-		sqlDB:  db,
-		driver: driver,
-	}, nil
-}
-
-func NewSQLite(filepath string) (DB, error) {
-	const driver = "sqlite3"
-	if filepath == "" {
-		return nil, fmt.Errorf("sqlite: file path is required")
-	}
-	if !strings.HasSuffix(filepath, ".db") {
-		filepath += ".db"
-	}
-
-	db, err := sql.Open(driver, filepath)
 	if err != nil {
 		return nil, err
 	}

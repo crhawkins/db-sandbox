@@ -7,39 +7,27 @@ import (
 	_ "github.com/lib/pq" // import your driver
 )
 
-func (d *dbWrapper) Create(name string) error {
-	if name == "" {
+func CreatePostgreSQL(host string, port int, dbName string, user string, password string) error {
+	if dbName == "" {
 		return fmt.Errorf("file name is empty")
 	}
 
-	if err := validateDatabaseName(name); err != nil {
+	if err := validateDatabaseName(dbName); err != nil {
 		return err
 	}
 
-	switch d.driver {
-	case "postgres":
-		_, err := d.sqlDB.Exec(fmt.Sprintf(`CREATE DATABASE "%s";`, name))
-		if err != nil {
-			return fmt.Errorf("postgres: failed to create database: %w", err)
-		}
-		return nil
-
-	case "sqlite3":
-		// No-op — file-based database already created via sql.Open()
-		return nil
-
-	default:
-		return fmt.Errorf("unsupported driver: %s", d.driver)
-	}
-}
-
-func (d *dbWrapper) CreateIfNotExists(name string) error {
-	exists, err := d.DatabaseExists(name)
+	db, err := ConnectPostgreSQL(host, port, "postgres", user, password)
 	if err != nil {
 		return err
 	}
-	if !exists {
-		return d.Create(name)
+
+	raw, err := db.Raw(false)
+	if err != nil {
+		return fmt.Errorf("failed to access raw DB: %w", err)
+	}
+	_, err = raw.Exec(fmt.Sprintf(`CREATE DATABASE "%s";`, dbName))
+	if err != nil {
+		return fmt.Errorf("postgres: failed to create database: %w", err)
 	}
 	return nil
 }
