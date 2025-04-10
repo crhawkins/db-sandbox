@@ -2,8 +2,6 @@ package dbhelper
 
 import (
 	"fmt"
-	"os"
-	"strings"
 )
 
 func (d *dbWrapper) Delete(name string) error {
@@ -31,18 +29,6 @@ func (d *dbWrapper) Delete(name string) error {
 		_, err = d.sqlDB.Exec(fmt.Sprintf(`DROP DATABASE IF EXISTS "%s";`, name))
 		if err != nil {
 			return fmt.Errorf("postgres: failed to delete database: %w", err)
-		}
-		return nil
-
-	case "sqlite3":
-		if !strings.HasSuffix(name, ".db") {
-			name += ".db"
-		}
-		if err := os.Remove(name); err != nil {
-			if os.IsNotExist(err) {
-				return nil // already gone
-			}
-			return fmt.Errorf("sqlite: failed to delete database file: %w", err)
 		}
 		return nil
 

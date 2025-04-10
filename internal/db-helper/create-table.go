@@ -7,20 +7,36 @@ import (
 )
 
 func (d *dbWrapper) CreateTable(model any) error {
-	tType := reflect.TypeOf(model)
+	modelType := reflect.TypeOf(model)
 
-	if tType.Kind() != reflect.Struct {
+	if modelType.Kind() != reflect.Struct {
 		return fmt.Errorf("CreateTable: provided value is not a struct")
 	}
 
-	tableName := strings.ToLower(tType.Name())
+	tableName := strings.ToLower(modelType.Name())
 	columns := []string{}
 	fkConstraints := []string{}
 
-	for i := 0; i < tType.NumField(); i++ {
-		field := tType.Field(i)
+	for i := 0; i < modelType.NumField(); i++ {
+		field := modelType.Field(i)
 		fieldType := field.Type
 		fieldName := strings.ToLower(field.Name)
+		tag := parseTagOptions(field.Tag.Get("meta"))
+
+		notNull := ""
+		if tag["required"] == "true" || tag["nullable"] == "false" {
+			notNull = " NOT NULL"
+		}
+
+		defaultValue := ""
+		if def, ok := tag["default"]; ok {
+			defaultValue = fmt.Sprintf(" DEFAULT %s", def)
+		}
+
+		checkConstraint := ""
+		if check, ok := tag["check"]; ok {
+			checkConstraint = fmt.Sprintf(" CHECK (%s)", check)
+		}
 
 		switch fieldType.Kind() {
 		case reflect.Int:
@@ -28,29 +44,48 @@ func (d *dbWrapper) CreateTable(model any) error {
 				switch d.driver {
 				case "postgres":
 					columns = append(columns, "id SERIAL PRIMARY KEY")
-				case "sqlite3":
-					columns = append(columns, "id INTEGER PRIMARY KEY AUTOINCREMENT")
 				default:
 					return fmt.Errorf("unsupported driver: %s", d.driver)
 				}
 			} else {
-				columns = append(columns, fmt.Sprintf("%s INTEGER", fieldName))
+				col := fmt.Sprintf("%s INTEGER%s%s%s", fieldName, notNull, defaultValue, checkConstraint)
+				if tag["unique"] == "true" {
+					col += " UNIQUE"
+				}
+				columns = append(columns, col)
 			}
 
 		case reflect.String:
-			columns = append(columns, fmt.Sprintf("%s TEXT", fieldName))
+			colType := "TEXT"
+			if tag["max_len"] != "" {
+				colType = fmt.Sprintf("VARCHAR(%s)", tag["max_len"])
+			}
+			col := fmt.Sprintf("%s %s%s%s%s", fieldName, colType, notNull, defaultValue, checkConstraint)
+			if tag["unique"] == "true" {
+				col += " UNIQUE"
+			}
+			columns = append(columns, col)
 
 		case reflect.Float64:
-			columns = append(columns, fmt.Sprintf("%s DOUBLE PRECISION", fieldName))
+			col := fmt.Sprintf("%s DOUBLE PRECISION%s%s%s", fieldName, notNull, defaultValue, checkConstraint)
+			if tag["unique"] == "true" {
+				col += " UNIQUE"
+			}
+			columns = append(columns, col)
 
 		case reflect.Struct:
-			// Check if it has an ID field → assume it's a foreign key
 			idField, ok := fieldType.FieldByName("ID")
 			if ok && idField.Type.Kind() == reflect.Int {
 				refTable := strings.ToLower(fieldType.Name())
 				colName := fmt.Sprintf("%s_id", refTable)
-				columns = append(columns, fmt.Sprintf("%s INTEGER", colName))
-				fk := fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(id)", colName, refTable)
+				columns = append(columns, fmt.Sprintf("%s INTEGER%s", colName, notNull))
+
+				action := strings.ToUpper(tag["on_delete"])
+				if action != "CASCADE" && action != "SET NULL" && action != "SET DEFAULT" {
+					action = "RESTRICT"
+				}
+
+				fk := fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(id) ON DELETE %s", colName, refTable, action)
 				fkConstraints = append(fkConstraints, fk)
 			} else {
 				return fmt.Errorf("unsupported embedded struct field: %s", field.Name)
@@ -72,4 +107,22 @@ func (d *dbWrapper) CreateTable(model any) error {
 	}
 
 	return nil
+}
+
+func parseTagOptions(tag string) map[string]string {
+	options := map[string]string{}
+	pairs := strings.Split(tag, ";")
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		if kv := strings.SplitN(pair, "=", 2); len(kv) == 2 {
+			options[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		} else {
+			// Treat as boolean flag
+			options[pair] = "true"
+		}
+	}
+	return options
 }

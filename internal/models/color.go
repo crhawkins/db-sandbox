@@ -2,5 +2,5 @@ package models
 
 type Color struct {
 	ID   int
-	Name string
+	Name string `meta:"required=true;max_len=16"`
 }

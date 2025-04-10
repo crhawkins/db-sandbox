@@ -85,18 +85,21 @@ func main() {
 	red.ID = ID
 	ID, _ = db.Insert(green)
 	green.ID = ID
-	ID, _ = db.Insert(blue)
+	ID, err = db.Insert(blue)
+	if err != nil {
+		log.Fatal(err)
+	}
 	blue.ID = ID
 
 	f150 := models.Car{
 		Model:   "F-150",
 		Company: ford,
-		Color:   red,
+		Color:   green,
 	}
 	vipor := models.Car{
-		Model:   "Vipor",
+		Model:   "Viporasdfasdfasdfasdfasdfasdfasdfasdfasdfafds",
 		Company: dodge,
-		Color:   blue,
+		Color:   green,
 	}
 	ID, _ = db.Insert(f150)
 	f150.ID = ID
@@ -121,9 +124,13 @@ func main() {
 
 	sql := dbhelper.CreateSelectSQL(
 		"Dealership",
-		[]string{"ID", "Stock.Count", "Stock.Price", "Company.Name AS CompanyName", "Country.Name AS CountryName", "Color.Name"},
+		[]string{
+			"ID", "Stock.Count", "Stock.Price",
+			"Car.Model",
+			"Company.Name", "Dealership.Stock.Company.Country.Name", "Color.Name",
+		},
 		[]string{"Price>1.0"},
-		[]string{"Stock", "Stock.Car", "Stock.Car.Company", "Stock.Car.Company.Country", "Stock.Car.Color"},
+		[]string{"Stock.Car.Company.Country", "Stock.Car.Color"},
 	)
 
 	fmt.Println(sql)
@@ -165,4 +172,5 @@ func main() {
 	if err = rows.Err(); err != nil {
 		log.Fatal(err)
 	}
+
 }

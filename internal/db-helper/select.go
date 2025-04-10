@@ -28,6 +28,7 @@ func CreateSelectSQL(base string, fields []string, where []string, joins []strin
 			curr := strings.ToLower(part)
 			key := prev + "_" + curr
 			if seen[key] {
+				fmt.Println(key)
 				prev = curr
 				continue
 			}
@@ -46,13 +47,32 @@ func CreateSelectSQL(base string, fields []string, where []string, joins []strin
 	return fmt.Sprintf("%s %s%s%s;", selectClause, fromClause, joinClause, whereClause)
 }
 
-func parseFieldToColumn(base string, field string) string {
+// func parseFieldToColumn(base string, field string) string {
+// 	parts := strings.Split(field, ".")
+// 	if len(parts) == 1 {
+// 		return fmt.Sprintf("%s.%s", strings.ToLower(base), strings.ToLower(parts[0]))
+// 	}
+// 	// Handle nested field like Company.Country.Name
+// 	table := strings.ToLower(parts[len(parts)-2])
+// 	column := strings.ToLower(parts[len(parts)-1])
+// 	return fmt.Sprintf("%s.%s", table, column)
+// }
+
+func parseFieldToColumn(base, field string) string {
+	if strings.Contains(field, " AS ") {
+		return field
+	}
+
 	parts := strings.Split(field, ".")
 	if len(parts) == 1 {
-		return fmt.Sprintf("%s.%s", strings.ToLower(base), strings.ToLower(parts[0]))
+		col := fmt.Sprintf("%s.%s", strings.ToLower(base), strings.ToLower(parts[0]))
+		alias := fmt.Sprintf("%s_%s", strings.ToLower(base), strings.ToLower(parts[0]))
+		return fmt.Sprintf("%s AS %s", col, alias)
 	}
-	// Handle nested field like Company.Country.Name
+
 	table := strings.ToLower(parts[len(parts)-2])
 	column := strings.ToLower(parts[len(parts)-1])
-	return fmt.Sprintf("%s.%s", table, column)
+	alias := strings.ToLower(strings.Join(parts, "_"))
+
+	return fmt.Sprintf("%s.%s AS %s", table, column, alias)
 }

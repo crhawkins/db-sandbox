@@ -2,8 +2,6 @@ package dbhelper
 
 import (
 	"fmt"
-	"os"
-	"strings"
 )
 
 func (d *dbWrapper) DatabaseExists(name string) (bool, error) {
@@ -16,23 +14,6 @@ func (d *dbWrapper) DatabaseExists(name string) (bool, error) {
 			return false, fmt.Errorf("postgres: failed to check database existence: %w", err)
 		}
 		return exists, nil
-
-	case "sqlite3":
-		// In SQLite, the database is a file
-		if name == "" {
-			return false, fmt.Errorf("sqlite: file name is empty")
-		}
-		if !strings.HasSuffix(name, ".db") {
-			name += ".db"
-		}
-		_, err := os.Stat(name)
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		if err != nil {
-			return false, fmt.Errorf("sqlite: failed to stat file: %w", err)
-		}
-		return true, nil
 
 	default:
 		return false, fmt.Errorf("unsupported driver: %s", d.driver)

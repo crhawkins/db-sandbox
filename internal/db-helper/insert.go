@@ -73,7 +73,6 @@ func (d *dbWrapper) Insert(model any) (int, error) {
 		return newID, nil
 	}
 
-	// For SQLite fallback
 	result, err := d.sqlDB.Exec(query, values...)
 	if err != nil {
 		return 0, fmt.Errorf("Insert: failed to insert into %s: %w", tableName, err)

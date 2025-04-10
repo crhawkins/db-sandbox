@@ -8,8 +8,6 @@ func (d *dbWrapper) Version() (string, error) {
 	switch d.driver {
 	case "postgres":
 		versionQuery = "SELECT version();"
-	case "sqlite3":
-		versionQuery = "SELECT sqlite_version();"
 	default:
 		return "", fmt.Errorf("unsupported driver: %s", d.driver)
 	}
